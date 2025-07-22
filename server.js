@@ -3,6 +3,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import compression from 'compression';
+import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,12 +16,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: process.env.CLIENT_URL || '*',
+    methods: ['GET', 'POST'],
+  },
   maxHttpBufferSize: 1e7
 });
-
-app.use(cors());
 
 const MESSAGES_PER_PAGE = 15;
 
@@ -31,10 +36,42 @@ let roomMessages = {
   random: []
 };
 
-app.get('/', (req, res) => {
-  res.send('Chat server running...');
+// Middleware
+app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+app.use(helmet());
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('✅ MongoDB connected'))
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err.message);
+  process.exit(1);
 });
 
+// API route (for health check)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('⚙️ Chat server running in development...');
+  });
+}
+
+// Socket.IO logic
 io.on('connection', (socket) => {
   console.log(`🔌 Connected: ${socket.id}`);
 
