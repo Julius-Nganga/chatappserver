@@ -17,7 +17,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       - name: Install dependencies
         run: pnpm install
@@ -27,4 +29,4 @@ jobs:
 
       - name: Trigger Deploy on Render
         run: |
-            curl -X POST https://api.render.com/deploy/srv-d1vtnnvdiees73c1iv20?key=2jB4YGPAxdA
+          curl -X POST https://api.render.com/deploy/srv-d1vtnnvdiees73c1iv20?key=2jB4YGPAxdA
